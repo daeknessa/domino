@@ -7,115 +7,253 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: '1v1 Score Tracker',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const ScoreTrackerPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class ScoreTrackerPage extends StatefulWidget {
+  const ScoreTrackerPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<ScoreTrackerPage> createState() => _ScoreTrackerPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _ScoreTrackerPageState extends State<ScoreTrackerPage> {
+  String player1Name = '';
+  String player2Name = '';
+  int player1Total = 0;
+  int player2Total = 0;
+  int? winningGoal;
+  String? winnerName;
 
-  void _incrementCounter() {
+  final TextEditingController _player1NameController = TextEditingController();
+  final TextEditingController _player2NameController = TextEditingController();
+  final TextEditingController _player1ScoreController = TextEditingController();
+  final TextEditingController _player2ScoreController = TextEditingController();
+
+  @override
+  void dispose() {
+    _player1NameController.dispose();
+    _player2NameController.dispose();
+    _player1ScoreController.dispose();
+    _player2ScoreController.dispose();
+    super.dispose();
+  }
+
+  void _showRulesDialog() {
+    final TextEditingController goalController = TextEditingController(
+      text: winningGoal?.toString() ?? '',
+    );
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Set Winning Goal'),
+          content: TextField(
+            controller: goalController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Winning Goal',
+              hintText: 'Enter a number',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  if (goalController.text.isNotEmpty) {
+                    winningGoal = int.tryParse(goalController.text);
+                  } else {
+                    winningGoal = null;
+                  }
+                  _checkWinCondition();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _checkWinCondition() {
+    if (winningGoal == null) {
+      winnerName = null;
+      return;
+    }
+
+    if (player1Total >= winningGoal!) {
+      winnerName = player1Name.trim().isNotEmpty ? player1Name : 'Player 1';
+    } else if (player2Total >= winningGoal!) {
+      winnerName = player2Name.trim().isNotEmpty ? player2Name : 'Player 2';
+    } else {
+      winnerName = null;
+    }
+  }
+
+  void _resetGame() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      player1Name = '';
+      player2Name = '';
+      player1Total = 0;
+      player2Total = 0;
+      winningGoal = null;
+      winnerName = null;
+
+      _player1NameController.clear();
+      _player2NameController.clear();
+      _player1ScoreController.clear();
+      _player2ScoreController.clear();
     });
+  }
+
+  void _addScore(int playerIndex) {
+    if (winnerName != null) return;
+
+    setState(() {
+      if (playerIndex == 1) {
+        int scoreToAdd = int.tryParse(_player1ScoreController.text) ?? 0;
+        player1Total += scoreToAdd;
+        _player1ScoreController.clear();
+      } else {
+        int scoreToAdd = int.tryParse(_player2ScoreController.text) ?? 0;
+        player2Total += scoreToAdd;
+        _player2ScoreController.clear();
+      }
+      _checkWinCondition();
+    });
+  }
+
+  Widget _buildPlayerColumn(int playerIndex) {
+    final isPlayer1 = playerIndex == 1;
+    final nameController = isPlayer1
+        ? _player1NameController
+        : _player2NameController;
+    final scoreController = isPlayer1
+        ? _player1ScoreController
+        : _player2ScoreController;
+    final totalScore = isPlayer1 ? player1Total : player2Total;
+
+    return Column(
+      children: [
+        TextField(
+          controller: nameController,
+          decoration: InputDecoration(
+            labelText: isPlayer1 ? 'Player 1 Name' : 'Player 2 Name',
+          ),
+          onChanged: (val) {
+            setState(() {
+              if (isPlayer1) {
+                player1Name = val;
+              } else {
+                player2Name = val;
+              }
+              // If there's already a winner, update the winner's name dynamically if they change it
+              if (winnerName != null) {
+                _checkWinCondition();
+              }
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: scoreController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Score to add'),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: winnerName == null ? () => _addScore(playerIndex) : null,
+          child: const Text('Add'),
+        ),
+        const Spacer(),
+        Text('Total', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          '$totalScore',
+          style: Theme.of(
+            context,
+          ).textTheme.displayLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const Spacer(),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('1v1 Score Tracker'),
+        actions: [
+          TextButton(
+            onPressed: _showRulesDialog,
+            child: const Text('Rules', style: TextStyle(color: Colors.black87)),
+          ),
+          TextButton(
+            onPressed: _resetGame,
+            child: const Text('Reset', style: TextStyle(color: Colors.black87)),
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Stack(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _buildPlayerColumn(1),
+                ),
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _buildPlayerColumn(2),
+                ),
+              ),
+            ],
+          ),
+          if (winnerName != null)
+            Center(
+              child: Card(
+                elevation: 12,
+                color: Theme.of(context).colorScheme.primaryContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 48.0,
+                    vertical: 32.0,
+                  ),
+                  child: Text(
+                    '$winnerName Wins!',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        ],
       ),
     );
   }
